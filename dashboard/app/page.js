@@ -16,6 +16,109 @@ const statusBadgeColors = {
   WARNING: 'bg-yellow-500/15 text-yellow-300 border-yellow-500/25',
 }
 
+const priorityColors = {
+  P1: 'bg-red-500/80 border-red-400/50',
+  P2: 'bg-orange-500/80 border-orange-400/50',
+  P3: 'bg-yellow-500/80 border-yellow-400/50',
+  P4: 'bg-green-500/80 border-green-400/50',
+}
+
+const categoryIcons = {
+  bug: '🐛',
+  enhancement: '✨',
+  question: '❓',
+  documentation: '📚',
+}
+
+function parseAIResponse(response) {
+  if (!response) return null;
+  try {
+    // Try to extract JSON from the response (might be wrapped in markdown code block)
+    const jsonMatch = response.match(/```json\s*([\s\S]*?)\s*```/) || 
+                      response.match(/```\s*([\s\S]*?)\s*```/) ||
+                      [null, response];
+    const jsonStr = jsonMatch[1] || response;
+    const parsed = JSON.parse(jsonStr);
+    return parsed;
+  } catch (e) {
+    return null;
+  }
+}
+
+function IssueCard({ issue }) {
+  return (
+    <div className="p-4 bg-slate-900/60 rounded-xl border border-slate-700/50 hover:border-slate-600/50 transition-colors">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3 flex-1">
+          <span className="text-2xl">{categoryIcons[issue.category] || '📌'}</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-slate-400 text-sm font-mono">#{issue.number}</span>
+              <span className={`px-2 py-0.5 rounded text-xs font-bold text-white ${priorityColors[issue.priority] || 'bg-slate-600'}`}>
+                {issue.priority}
+              </span>
+            </div>
+            <p className="text-white font-medium mt-1 break-words">{issue.title}</p>
+            <div className="flex gap-2 mt-2 flex-wrap">
+              {(issue.labels || []).map((label, i) => (
+                <span key={i} className="px-2 py-0.5 rounded-full text-xs bg-slate-700/80 text-slate-300 border border-slate-600/50">
+                  {label}
+                </span>
+              ))}
+            </div>
+            {issue.comment && (
+              <div className="mt-3 p-3 bg-slate-800/50 rounded-lg border-l-2 border-purple-500/50">
+                <p className="text-slate-300 text-sm italic">"{issue.comment}"</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function AIResponseDisplay({ response }) {
+  const parsed = parseAIResponse(response);
+  
+  if (parsed && parsed.issues && Array.isArray(parsed.issues)) {
+    return (
+      <div className="mt-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <p className="text-slate-300 text-sm font-medium">🤖 AI Triage Results</p>
+          <span className="text-slate-500 text-xs">{parsed.issues.length} issues analyzed</span>
+        </div>
+        <div className="grid gap-3">
+          {parsed.issues.map((issue, i) => (
+            <IssueCard key={i} issue={issue} />
+          ))}
+        </div>
+        {parsed.summary && (
+          <div className="p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-xl border border-purple-500/20">
+            <p className="text-slate-400 text-xs uppercase tracking-wide mb-2">Summary</p>
+            <p className="text-slate-200 text-sm">{parsed.summary}</p>
+          </div>
+        )}
+      </div>
+    );
+  }
+  
+  // Fallback to raw display if JSON parsing fails
+  return (
+    <div className="mt-4">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-slate-300 text-sm font-medium">AI Response</p>
+        <span className="text-slate-500 text-xs">(raw)</span>
+      </div>
+      <div className="mt-2 p-4 bg-slate-950/40 rounded-xl border border-slate-800 max-h-96 overflow-auto">
+        <pre className="text-slate-200 text-sm whitespace-pre-wrap font-mono leading-relaxed">
+          {response}
+        </pre>
+      </div>
+    </div>
+  );
+}
+
 function Pill({ children, className = '' }) {
   return (
     <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm border ${className}`}>
@@ -101,17 +204,7 @@ function ExecutionCard({ execution }) {
           </div>
 
           {execution.aiResponse ? (
-            <div className="mt-4">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-slate-300 text-sm font-medium">AI Response</p>
-                <span className="text-slate-500 text-xs">(truncated)</span>
-              </div>
-              <div className="mt-2 p-4 bg-slate-950/40 rounded-xl border border-slate-800">
-                <pre className="text-slate-200 text-sm whitespace-pre-wrap font-mono leading-relaxed">
-                  {execution.aiResponse}
-                </pre>
-              </div>
-            </div>
+            <AIResponseDisplay response={execution.aiResponse} />
           ) : (
             <div className="mt-4 p-4 bg-slate-950/40 rounded-xl border border-slate-800">
               <p className="text-slate-400 text-sm">No AI response available for this execution.</p>

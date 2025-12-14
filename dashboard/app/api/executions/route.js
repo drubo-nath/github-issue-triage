@@ -2,8 +2,8 @@ export async function GET() {
   const KESTRA_URL = process.env.KESTRA_URL || 'http://localhost:8080';
   const KESTRA_USER = process.env.KESTRA_USER || 'admin@kestra.io';
   const KESTRA_PASSWORD = process.env.KESTRA_PASSWORD || 'kestra';
-  const NAMESPACE = 'github';
-  const FLOW_ID = 'issue-triage';
+  const NAMESPACE = 'hackathon';
+  const FLOW_ID = 'github-issue-triage-v3';
 
   // Create Basic Auth header
   const authHeader = 'Basic ' + Buffer.from(`${KESTRA_USER}:${KESTRA_PASSWORD}`).toString('base64');
@@ -34,31 +34,36 @@ export async function GET() {
       const startDate = new Date(exec.state.startDate);
       const endDate = exec.state.endDate ? new Date(exec.state.endDate) : null;
       
-      // Extract outputs if available
-      const outputs = exec.outputs || {};
-      const reportOutput = outputs.report || {};
+      // Extract outputs from taskRunList (Kestra nests outputs per task)
+      const taskRuns = exec.taskRunList || [];
       
-      // Parse the AI response from outputs
-      let aiResponse = '';
+      // Find the fetch_issues task to count issues
       let issueCount = 0;
-      let appliedActions = false;
-      
-      if (outputs.triage_agent?.textOutput) {
-        aiResponse = outputs.triage_agent.textOutput;
-      }
-      
-      if (outputs.fetch_issues?.body) {
+      const fetchTask = taskRuns.find(t => t.taskId === 'fetch_issues');
+      if (fetchTask?.outputs?.body) {
         try {
-          const issues = JSON.parse(outputs.fetch_issues.body);
+          const issues = JSON.parse(fetchTask.outputs.body);
           issueCount = Array.isArray(issues) ? issues.length : 0;
         } catch (e) {
           // Ignore parse errors
         }
       }
       
+      // Find the AI agent task (could be triage_agent or summarize_issues)
+      let aiResponse = '';
+      const aiTask = taskRuns.find(t => 
+        t.taskId === 'triage_agent' || 
+        t.taskId === 'summarize_issues'
+      );
+      if (aiTask?.outputs?.textOutput) {
+        aiResponse = aiTask.outputs.textOutput;
+      } else if (aiTask?.outputs?.output) {
+        aiResponse = aiTask.outputs.output;
+      }
+      
       // Check if dry_run was false (meaning actions were applied)
       const inputs = exec.inputs || {};
-      appliedActions = inputs.dry_run === false;
+      const appliedActions = inputs.dry_run === false;
       
       return {
         id: exec.id,
@@ -69,7 +74,7 @@ export async function GET() {
           : 'Running...',
         issuesProcessed: issueCount,
         mode: appliedActions ? 'LIVE' : 'DRY RUN',
-        aiResponse: aiResponse.substring(0, 500) + (aiResponse.length > 500 ? '...' : ''),
+        aiResponse: aiResponse || '', // Send full response for proper parsing
         inputs: inputs,
       };
     });
