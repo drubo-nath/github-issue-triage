@@ -2,7 +2,8 @@
 
 > An AI-powered bot that reads your GitHub issues, figures out what they're about, and takes action — labels them, sets priority, posts helpful responses. Zero manual work.
 
-**[Live Demo](https://github.com/drubo-nath/issue-triage-demo/issues)** · **[Dashboard]()** · **[Video Walkthrough]()**
+
+[![Video](https://img.shields.io/badge/▶_Watch_Demo-red?style=for-the-badge&logo=youtube)](https://youtu.be/0aKpIL9sdZI)
 
 ![Kestra Flow](https://img.shields.io/badge/Built%20with-Kestra-blueviolet)
 ![License](https://img.shields.io/badge/License-MIT-green)
@@ -24,7 +25,7 @@ It's tedious. It takes time away from actually building things.
 
 ## The Solution
 
-This bot does all of that automatically.
+This Agent does all of that automatically.
 
 You point it at a repo, hit run, and it:
 
